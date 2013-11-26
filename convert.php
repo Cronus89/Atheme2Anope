@@ -19,6 +19,8 @@
  *
  * Requires: PHP5
  */
+
+$ircd = 'inspircd';
 echo "Atheme (7.0.2) to Anope Database Convertor..\n";
 echo "Version 0.1, All passwords will be reset.\n\n";
 sleep(1);
@@ -121,6 +123,12 @@ foreach ($atheme_db as $line) {
 				$cdat['name'] = $data[1];
 				$cdat['create'] = $data[2]; // Create Stamp?
 				$cdat['used'] = $data[3];
+				
+				$cdat['mlock_on']		= (isset($data[5]) && is_numeric($data[5]))?	$data[5] : 0;
+				$cdat['mlock_off']		= (isset($data[6]) && is_numeric($data[6]))?	$data[6] : 0;
+				$cdat['mlock_limit']	= (isset($data[7]) && is_numeric($data[7]))?	$data[7] : 0;
+				$cdat['mlock_key']		= (isset($data[8]) && strlen($data[8]))?		$data[8] : NULL;
+				
 				$chans[$data[1]] = $cdat;
 			} else if ($data[0] == "CA") {
 				// Channel access. Tricky one.
@@ -133,7 +141,7 @@ foreach ($atheme_db as $line) {
 				if (preg_match("/F/",$data[3])) {
 					if (!isset($founders[$data[1]])) {
 						$debug++;
-						$founders[$data[1]][] = $data[3];
+						$founders[$data[1]][] = $data[2];
 					} else {
 						// We already have our founder.
 						$debug++;
@@ -316,6 +324,9 @@ foreach ($chans as $c) {
 	$output[] = "DATA SIGNKICK 1";
 	$output[] = "DATA KEEPTOPIC 1";
 	$output[] = "END";
+	
+	$output	= array_merge($output, translateModeLock($c));
+
 }
 
 // Next ChannelAccess, Add access!
@@ -404,4 +415,116 @@ if (count($chans) !== count($founders)) {
 	file_put_contents("error_dump_".time().".txt",implode($out));
 	echo "There is a founder (".count($founders).") vs channel (".count($chans).") mismatch! Please report error_dump_".time().".txt to tmfksoft@gmail.com\n";
 }
+
+function translateModeLock ($channel) {
+	global	$ircd;
+	
+	$ircd	= (isset($ircd) && strlen($ircd))?	strtolower($ircd) : 'generic';
+	$out	= Array();
+	
+	$locked	= Array();
+	
+	/* IRCd independent channel modes */
+	if ($channel['mlock_on'] & 0x00000001)	$locked[] = Array("INVITE","ON");
+	if ($channel['mlock_on'] & 0x00000008)	$locked[] = Array("MODERATED","ON");
+	if ($channel['mlock_on'] & 0x00000010)	$locked[] = Array("NOEXTERNAL","ON");
+	if ($channel['mlock_on'] & 0x00000040)	$locked[] = Array("PRIVATE","ON");
+	if ($channel['mlock_on'] & 0x00000080)	$locked[] = Array("SECRET","ON");
+	if ($channel['mlock_on'] & 0x00000100)	$locked[] = Array("TOPIC","ON");
+
+	if ($channel['mlock_off'] & 0x00000001)	$locked[] = Array("INVITE","OFF");
+	if ($channel['mlock_off'] & 0x00000008)	$locked[] = Array("MODERATED","OFF");
+	if ($channel['mlock_off'] & 0x00000010)	$locked[] = Array("NOEXTERNAL","OFF");
+	if ($channel['mlock_off'] & 0x00000040)	$locked[] = Array("PRIVATE","OFF");
+	if ($channel['mlock_off'] & 0x00000080)	$locked[] = Array("SECRET","OFF");
+	if ($channel['mlock_off'] & 0x00000100)	$locked[] = Array("TOPIC","OFF");
+	
+	// Keys
+	if (($channel['mlock_on'] & 0x00000002) && strlen($channel['mlock_key']))	$locked[] = Array("KEY","ON",$channel['mlock_key']);
+	//if ($channel['mlock_off'] & 0x00000002)	$locked[] = Array("KEY","OFF");
+
+	// Limits
+	if (($channel['mlock_on'] & 0x00000004) && strlen($channel['mlock_limit']))	$locked[] = Array("LIMIT","ON",$channel['mlock_limit']);
+	//if ($channel['mlock_off'] & 0x00000004)	$locked[] = Array("LIMIT","OFF");
+	
+	if (($ircd == 'unreal') || ($ircd == 'inspircd')) {
+		if ($channel['mlock_on'] & 0x00001000)	$locked[] = Array("BLOCKCOLOR","ON");
+		if ($channel['mlock_on'] & 0x00002000)	$locked[] = Array("REGMODERATED", "ON");
+		if ($channel['mlock_on'] & 0x00004000)	$locked[] = Array("REGISTEREDONLY","ON");
+		if ($channel['mlock_on'] & 0x00008000)	$locked[] = Array("OPERONLY","ON");
+		if ($channel['mlock_on'] & 0x00020000)	$locked[] = Array("NOKICK","ON");
+		if ($channel['mlock_on'] & 0x00040000)	$locked[] = Array("STRIPCOLOR","ON");
+		if ($channel['mlock_on'] & 0x00080000)	$locked[] = Array("NOKNOCK","ON");
+		if ($channel['mlock_on'] & 0x00100000)	$locked[] = Array("NOINVITE","ON");
+		if ($channel['mlock_on'] & 0x00200000)	$locked[] = Array("NOCTCP","ON");
+		if ($channel['mlock_on'] & 0x00400000)	$locked[] = Array("AUDITORIUM","ON");
+		if ($channel['mlock_on'] & 0x00800000)	$locked[] = Array("SSL","ON");
+		if ($channel['mlock_on'] & 0x01000000)	$locked[] = Array("NONICK","ON");
+
+		if ($channel['mlock_off'] & 0x00001000)	$locked[] = Array("BLOCKCOLOR","OFF");
+		if ($channel['mlock_off'] & 0x00002000)	$locked[] = Array("REGMODERATED", "OFF");
+		if ($channel['mlock_off'] & 0x00004000)	$locked[] = Array("REGISTEREDONLY","OFF");
+		if ($channel['mlock_off'] & 0x00008000)	$locked[] = Array("OPERONLY","OFF");
+		if ($channel['mlock_off'] & 0x00020000)	$locked[] = Array("NOKICK","OFF");
+		if ($channel['mlock_off'] & 0x00040000)	$locked[] = Array("STRIPCOLOR","OFF");
+		if ($channel['mlock_off'] & 0x00080000)	$locked[] = Array("NOKNOCK","OFF");
+		if ($channel['mlock_off'] & 0x00100000)	$locked[] = Array("NOINVITE","OFF");
+		if ($channel['mlock_off'] & 0x00200000)	$locked[] = Array("NOCTCP","OFF");
+		if ($channel['mlock_off'] & 0x00400000)	$locked[] = Array("AUDITORIUM","OFF");
+		if ($channel['mlock_off'] & 0x00800000)	$locked[] = Array("SSL","OFF");
+		if ($channel['mlock_off'] & 0x01000000)	$locked[] = Array("NONICK","OFF");
+	}
+	
+	if ($ircd == 'unreal') {
+		if ($channel['mlock_on'] & 0x00010000)	$locked[] = Array("ADMINONLY","ON");
+		//if ($channel['mlock_on'] & 0x02000000)	$locked[] = Array("JOINFLOOD","ON");
+		if ($channel['mlock_on'] & 0x04000000)	$locked[] = Array("FILTER","ON");
+		//if ($channel['mlock_on'] & 0x80000000)	$locked[] = Array("PERM","ON");
+
+		if ($channel['mlock_off'] & 0x00010000)	$locked[] = Array("ADMINONLY","OFF");
+		//if ($channel['mlock_off'] & 0x02000000)	$locked[] = Array("JOINFLOOD","OFF");
+		if ($channel['mlock_off'] & 0x04000000)	$locked[] = Array("FILTER","OFF");
+		//if ($channel['mlock_off'] & 0x80000000)	$locked[] = Array("PERM","OFF");
+	}
+	
+	if ($ircd == 'inspircd') {
+		if ($channel['mlock_on'] & 0x00010000)	$locked[] = Array("NONOTICE","ON");
+		if ($channel['mlock_on'] & 0x02000000)	$locked[] = Array("FILTER","ON");
+		if ($channel['mlock_on'] & 0x04000000)	$locked[] = Array("BLOCKCAPS","ON");
+		if ($channel['mlock_on'] & 0x08000000)	$locked[] = Array("PERM","ON");
+		//if ($channel['mlock_on'] & 0x10000000)	$locked[] = Array("IMMUNE","ON");
+		if ($channel['mlock_on'] & 0x20000000)	$locked[] = Array("DELAYEDJOIN","ON");
+	
+		if ($channel['mlock_off'] & 0x00010000)	$locked[] = Array("NONOTICE","OFF");
+		if ($channel['mlock_off'] & 0x02000000)	$locked[] = Array("FILTER","OFF");
+		if ($channel['mlock_off'] & 0x04000000)	$locked[] = Array("BLOCKCAPS","OFF");
+		if ($channel['mlock_off'] & 0x08000000)	$locked[] = Array("PERM","OFF");
+		//if ($channel['mlock_off'] & 0x10000000)	$locked[] = Array("IMMUNE","OFF");
+		if ($channel['mlock_off'] & 0x20000000)	$locked[] = Array("DELAYEDJOIN","OFF");
+	}
+	
+	foreach ($locked as $key => $data) {
+		$out[]	= "OBJECT ModeLock";
+		$out[]	= "DATA ci $channel[name]";
+	
+		if ($data[1] == "ON")
+			$out[]	= "DATA set 1";
+		else
+			$out[]	= "DATA set 0";
+
+		$out[]	= "DATA name $data[0]";
+	
+		if (isset($data[2]) && strlen($data[2]))
+			$out[]	= "DATA param $data[2]";
+		else
+			$out[]	= "DATA param";
+
+		$out[]	= "DATA setter Unknown";
+		$out[]	= "DATA created $channel[create]";
+		$out[]	= "END";
+	}
+
+	return $out;
+}
+
 ?>
