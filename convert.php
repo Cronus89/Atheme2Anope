@@ -162,7 +162,7 @@ foreach ($atheme_db as $line) {
 						if ($extra[2] == "setter") {
 							$xdata['topic_setter'] = $data[3];
 						} else if ($extra[2] == "text") {
-							$xdata['topic_text'] = implode(" ",array_slice($data,2));
+							$xdata['topic_text'] = implode(" ",array_slice($data,3));
 						} else if ($extra[2] == "ts") {
 							$xdata['topic_ts'] = $data[3];
 						}
