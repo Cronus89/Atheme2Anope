@@ -123,7 +123,7 @@ foreach ($atheme_db as $line) {
 				$cdat['name'] = $data[1];
 				$cdat['create'] = $data[2]; // Create Stamp?
 				$cdat['used'] = $data[3];
-				
+				// Mlock related stuff. Atheme uses BitMasks.
 				$cdat['mlock_on']		= (isset($data[5]) && is_numeric($data[5]))?	$data[5] : 0;
 				$cdat['mlock_off']		= (isset($data[6]) && is_numeric($data[6]))?	$data[6] : 0;
 				$cdat['mlock_limit']	= (isset($data[7]) && is_numeric($data[7]))?	$data[7] : 0;
@@ -162,7 +162,7 @@ foreach ($atheme_db as $line) {
 						if ($extra[2] == "setter") {
 							$xdata['topic_setter'] = $data[3];
 						} else if ($extra[2] == "text") {
-							$xdata['topic_text'] = implode(" ",array_slice($data,2));
+							$xdata['topic_text'] = implode(" ",array_slice($data,3));
 						} else if ($extra[2] == "ts") {
 							$xdata['topic_ts'] = $data[3];
 						}
