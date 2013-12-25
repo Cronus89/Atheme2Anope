@@ -22,7 +22,7 @@
 
 $ircd = 'inspircd';
 echo "Atheme (7.0.2) to Anope Database Convertor..\n";
-echo "Version 0.1, All passwords will be reset.\n\n";
+echo "Version 0.2.\n\n";
 sleep(1);
 $start = time();
 echo "Loading Atheme Database. Make sure it is named 'atheme.db'!\n";
@@ -36,7 +36,7 @@ $objects = 0;
 foreach ($atheme_db as $line) {
 	if ($line != "") {
 		$dat = explode(chr(32),$line);
-		if (preg_match("/(MU|MDU|MC|MN|CA|MDC|BOT|ME)/i",$dat[0])) {
+		if (preg_match("/(MU|MDU|MC|MN|CA|MDC|BOT|ME|CLONES-EX)/i",$dat[0])) {
 			$objects++;
 		}
 	}
@@ -72,17 +72,20 @@ $access = array();
 $memos = array();
 $alias = array();
 $founders = array();
-
+$clones = array();
+$aver = 0;
 $debug = 0;
 
 // Lets read the data.
 foreach ($atheme_db as $line) {
 	if ($line != "") {
 		$data = explode(chr(32),$line);
-		if (preg_match("/(MU|MDU|MC|MN|CA|MDC|BOT|DBV|ME)/i",$data[0])) {
+		if (preg_match("/(MU|MDU|MC|MN|CA|MDC|BOT|DBV|ME|MDEP|CLONES-EX)/i",$data[0])) {
 			if ($data[0] == "DBV") {
 				echo "Atheme Database v{$data[1]}\n";
 				$aver = $data[1];
+			} else if ($data[0] == "MDEP") {
+				// Attempts to auto detect ircd and crypto
 			} else if ($data[0] == "MU") {
 				// User Registration
 				$udat = array();
@@ -95,7 +98,7 @@ foreach ($atheme_db as $line) {
 			} else if ($data[0] == "MDU") {
 				// Some form of host.
 				$host_info = explode(":",$data[2]);
-				if (isset($host_info[1]) && $host_info[1] == "private") {
+				if (isset($host_info[1]) && $host_info[0] == "private") {
 					if (isset($host_info[2])) {
 						if ($host_info[2] == "vhost") {
 							$nicks[$data[1]]['last_host'] = $data[3];
@@ -123,6 +126,9 @@ foreach ($atheme_db as $line) {
 				$cdat['name'] = $data[1];
 				$cdat['create'] = $data[2]; // Create Stamp?
 				$cdat['used'] = $data[3];
+
+				// Splits all chracters into an array and cuts off the plus.
+				$cdat['flag'] = str_split(substr($data[4],1));
 				// Mlock related stuff. Atheme uses BitMasks.
 				$cdat['mlock_on']		= (isset($data[5]) && is_numeric($data[5]))?	$data[5] : 0;
 				$cdat['mlock_off']		= (isset($data[6]) && is_numeric($data[6]))?	$data[6] : 0;
@@ -195,6 +201,15 @@ foreach ($atheme_db as $line) {
 				$msg = implode(chr(32),array_slice($data,5));
 				$mdat['msg'] = $msg;
 				$memos[] = $mdat;
+			} else if ($data[0] == "CLONES-EX") {
+				// IP Exception List
+				$cldat = array();
+				$cldat['mask'] = $data[1];
+				$cldat['limit'] = $data[2];
+				$cldat['time'] = time();
+				$cldat['expires'] = $data[4];
+				$cldat['reason'] = $data[5];
+				$clones[] = $cldat;
 			}
 		}
 	}
@@ -227,11 +242,11 @@ foreach ($bots as $b) {
 // Next NickCore
 $emails = array();
 foreach ($nicks as $n) {
-	$password = gen();
-	$emails[] = array("nick"=>$n['nick'],"password"=>$password,"email"=>$n['email']);
+	//$password = gen();
+	//$emails[] = array("nick"=>$n['nick'],"password"=>$password,"email"=>$n['email']);
 	$output[] = "OBJECT NickCore";
 	$output[] = "DATA display {$n['nick']}";
-	$output[] = "DATA pass md5:".md5($password);
+	$output[] = "DATA pass posix:{$n['pass']}";
 	$output[] = "DATA email {$n['email']}";
 	$output[] = "DATA language";
 	if (isset($n['access'])) {
@@ -285,6 +300,9 @@ foreach ($alias as $n) {
 
 // Next ChannelInfo to add channels
 foreach ($chans as $c) {
+	$flags = array();
+	$flags['r'] = "RESTRICTED";
+	$flags['t'] = "TOPICLOCK";
 	// Keep in mind we're using just default values here and dont know the users
 	// Anope configuration
 	$output[] = "OBJECT ChannelInfo";
@@ -323,6 +341,11 @@ foreach ($chans as $c) {
 	$output[] = "DATA CS_SECURE 1";
 	$output[] = "DATA SIGNKICK 1";
 	$output[] = "DATA KEEPTOPIC 1";
+	foreach ($c['flag'] as $fchar) {
+		if (isset($flags[$fchar])) {
+			$output[] = "DATA {$flags[$fchar]} 1";
+		}
+	}
 	$output[] = "END";
 	
 	$output	= array_merge($output, translateModeLock($c));
@@ -382,11 +405,21 @@ foreach ($memos as $m) {
 	$output[] = "DATA receipt 0";
 	$output[] = "END";
 }
-
+// Atheme CLONES-EX - Anope Exceptions
+foreach ($clones as $cl) {
+	$output[] = "OBJECT Exception";
+	$output[] = "DATA mask {$cl['mask']}";
+	$output[] = "DATA limit {$cl['limit']}";
+	$output[] = "DATA who Unknown";
+	$output[] = "DATA reason {$cl['reason']}";
+	$output[] = "DATA time {$cl['time']}";
+	$output[] = "DATA expires {$cl['expires']}";
+	$output[] = "END";
+}
 // Save the config to anope.db
 echo "\nSaving to 'anope.db'.. This could take a while..\n";
 file_put_contents("anope.db",implode("\n",$output));
-echo "Generating EMail List file.\n";
+//echo "Generating EMail List file.\n";
 if (count($emails) > 0) {
 	$em = array();
 	foreach ($emails as $email) {
@@ -398,7 +431,7 @@ if (count($emails) > 0) {
 }
 $s = time() - $start;
 echo "\n\tDone! Conversion took {$s} seconds!\n";
-$count = count($bots)+count($chans)+count($nicks)+count($access)+count($memos)+count($alias);
+$count = count($bots)+count($chans)+count($nicks)+count($access)+count($memos)+count($alias)+count($clones);
 echo "I used {$count} objects out of the detected {$objects}!\n\n";
 echo "I also encountered ".count($errors)." errors.\n";
 foreach ($errors as $err) {

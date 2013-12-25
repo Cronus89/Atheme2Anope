@@ -1,0 +1,50 @@
+diff --git a/convert.php b/convert.php
+index 558ab45..a53441b 100644
+--- a/convert.php
++++ b/convert.php
+@@ -123,6 +123,8 @@ foreach ($atheme_db as $line) {
+ 				$cdat['name'] = $data[1];
+ 				$cdat['create'] = $data[2]; // Create Stamp?
+ 				$cdat['used'] = $data[3];
++				// Splits all chracters into an array and cuts off the plus.
++				$cdat['flag'] = str_split(substr($data[4],1));
+ 				// Mlock related stuff. Atheme uses BitMasks.
+ 				$cdat['mlock_on']		= (isset($data[5]) && is_numeric($data[5]))?	$data[5] : 0;
+ 				$cdat['mlock_off']		= (isset($data[6]) && is_numeric($data[6]))?	$data[6] : 0;
+@@ -227,11 +229,11 @@ foreach ($bots as $b) {
+ // Next NickCore
+ $emails = array();
+ foreach ($nicks as $n) {
+-	$password = gen();
+-	$emails[] = array("nick"=>$n['nick'],"password"=>$password,"email"=>$n['email']);
++	//$password = gen();
++	//$emails[] = array("nick"=>$n['nick'],"password"=>$password,"email"=>$n['email']);
+ 	$output[] = "OBJECT NickCore";
+ 	$output[] = "DATA display {$n['nick']}";
+-	$output[] = "DATA pass md5:".md5($password);
++	$output[] = "DATA pass posix:{$n['pass']}";
+ 	$output[] = "DATA email {$n['email']}";
+ 	$output[] = "DATA language";
+ 	if (isset($n['access'])) {
+@@ -285,6 +287,9 @@ foreach ($alias as $n) {
+ 
+ // Next ChannelInfo to add channels
+ foreach ($chans as $c) {
++	$flags = array();
++	$flags['r'] = "RESTRICTED";
++	$flags['t'] = "TOPICLOCK";
+ 	// Keep in mind we're using just default values here and dont know the users
+ 	// Anope configuration
+ 	$output[] = "OBJECT ChannelInfo";
+@@ -323,6 +328,11 @@ foreach ($chans as $c) {
+ 	$output[] = "DATA CS_SECURE 1";
+ 	$output[] = "DATA SIGNKICK 1";
+ 	$output[] = "DATA KEEPTOPIC 1";
++	foreach ($c['flag'] as $fchar) {
++		if (isset($flags[$fchar])) {
++			$output[] = "DATA {$flags[$fchar]} 1";
++		}
++	}
+ 	$output[] = "END";
+ 	
+ 	$output	= array_merge($output, translateModeLock($c));
