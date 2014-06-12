@@ -12,4 +12,6 @@ Usage:
  
  Currently this tool assumes you use posix style encryption in atheme.
  
- Use the provided enc_posix.cpp as a module in anope and load it to be able to identify.  (Its used just like any other enc type/mod in Anope2)
+ Use the provided enc_posix.cpp as a module in anope and load it to be able to identify.  
+ (Its used just like any other enc type/mod in Anope2)
+ NOTE: This module cannot SAVE as posix type encryption.. You must have another enc mod loaded before this one, or it will crash and burn.
