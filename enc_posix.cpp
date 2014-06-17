@@ -73,7 +73,8 @@ class EPosix : public Module
 		if (!hash_method.equals_cs("posix"))
 			return;
 
-		GetSaltFromPass(nc->pass);
+		if (!GetSaltFromPass(nc->pass))
+			return;
 		use_salt = true;
 
 		Anope::string buf;
