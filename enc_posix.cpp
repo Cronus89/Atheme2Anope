@@ -22,11 +22,17 @@ class EPosix : public Module
 
         /* splits the appended salt from the password string so it can be used for the next encryption */
         /* password format:  <hashmethod>:<password>:<salt> */
-	void GetSaltFromPass(const Anope::string &password)
+	bool GetSaltFromPass(const Anope::string &password)
 	{
 		size_t pos = password.find("$");
+		if (pos == Anope::string::npos)
+			return false;
 		size_t pos2 = password.find("$", pos + 1);
+		if (pos2 == Anope::string::npos)
+			return false;
 		size_t pos3 = password.find("$", pos2 + 1);
+		if (pos3 == Anope::string::npos)
+			return false;
 
 		std::stringstream buf;
 
@@ -36,6 +42,7 @@ class EPosix : public Module
 			buf << "$1$replaceme";
 
 		salt = buf.str();
+		return true;
 	}
 
  public:
@@ -73,7 +80,8 @@ class EPosix : public Module
 		if (!hash_method.equals_cs("posix"))
 			return;
 
-		GetSaltFromPass(nc->pass);
+		if (!GetSaltFromPass(nc->pass))
+			return;
 		use_salt = true;
 
 		Anope::string buf;
