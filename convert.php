@@ -80,7 +80,7 @@ $debug = 0;
 foreach ($atheme_db as $line) {
 	if ($line != "") {
 		$data = explode(chr(32),$line);
-		if (preg_match("/(MU|MDU|MC|MN|CA|MDC|BOT|DBV|ME|MDEP|CLONES-EX)/i",$data[0])) {
+		if (preg_match("/(MU|MDU|MCFP|MC|MN|CA|MDC|BOT|DBV|ME|MDEP|CLONES-EX)/i",$data[0])) {
 			if ($data[0] == "DBV") {
 				echo "Atheme Database v{$data[1]}\n";
 				$aver = $data[1];
@@ -120,6 +120,10 @@ foreach ($atheme_db as $line) {
 				$adat['seen_stamp'] = $data[4];
 				$alias[] = $adat;
 				
+			} else if ($data[0] == "MCFP") {
+				// Nick identify Cert
+				// Syntax: MCFP nick fingerprint
+				$nicks[$data[1]]['fingerprint'][] = $data[2];
 			} else if ($data[0] == "MC") {
 				// Channel Create.
 				$cdat = array();
@@ -210,7 +214,7 @@ foreach ($atheme_db as $line) {
 				$cldat['expires'] = $data[4];
 				$cldat['reason'] = $data[5];
 				$clones[] = $cldat;
-			}
+			} 
 		}
 	}
 }
@@ -256,6 +260,11 @@ foreach ($nicks as $n) {
 	$output[] = "DATA memomax 20";
 	$output[] = "DATA MEMO_SIGNON 1";
 	$output[] = "DATA MEMO_RECEIVE 1";
+	if (isset($n['fingerprint'])) {
+		foreach ($n['fingerprint'] as $cert) {
+			$output[] = "DATA cert {$cert}";
+		}
+	}
 	$output[] = "DATA HIDE_EMAIL 1";
 	$output[] = "DATA HIDE_MASK 1";
 	$output[] = "DATA NS_PRIVATE 1";
